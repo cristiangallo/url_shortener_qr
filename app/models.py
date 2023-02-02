@@ -12,6 +12,7 @@ class URL(models.Model):
     from sorl.thumbnail import ImageField as sorl_thumbnail_ImageField
 
     url = models.URLField(max_length=512)
+    logo = sorl_thumbnail_ImageField(max_length=255, upload_to="qr-codes/logos/", null=True, blank=True)
     qr = sorl_thumbnail_ImageField(max_length=255, null=True, blank=True, editable=False)
 
     class Meta:
@@ -37,15 +38,17 @@ class URL(models.Model):
         s = pyshorteners.Shortener()
         filename = path.join(f'qr-codes/', f"qr-{''.join(choice(ascii_lowercase + digits) for x in range(10))}.jpg")
         qr_big = qrcode.QRCode(
+            # version=1,
+            # box_size=20,
+            # border=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H
         )
         qr_big.add_data(s.tinyurl.short(self.url))
         img_qr_big = qr_big.make_image().convert('RGB')
-
-        logo = Image.open(settings.MEDIA_ROOT / 'LOGOBLC.jpg').resize((120, 120))
-
-        pos = ((img_qr_big.size[0] - logo.size[0]) // 2, (img_qr_big.size[1] - logo.size[1]) // 2)
-        img_qr_big.paste(logo, pos)
+        if self.logo.name:
+            logo = Image.open(f"{settings.BASE_DIR}{self.logo.url}").resize((120, 120))
+            pos = ((img_qr_big.size[0] - logo.size[0]) // 2, (img_qr_big.size[1] - logo.size[1]) // 2)
+            img_qr_big.paste(logo, pos)
         img_qr_big.save(settings.MEDIA_ROOT / filename)
         self.qr = filename
         super().save(update_fields=['qr'])
