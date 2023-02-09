@@ -44,20 +44,15 @@ class URL(models.Model):
         return f"{PROTOCOLO_SITIO}/{self.id}"
 
     def make_qr(self):
-        import pyshorteners
         from PIL import Image
         from string import ascii_lowercase, digits
         from random import choice
         from django.conf import settings
         from os import path
 
-        s = pyshorteners.Shortener()
         filename = path.join(f'qr-codes/', f"qr-{''.join(choice(ascii_lowercase + digits) for x in range(10))}.jpg")
         qr_big = qrcode.QRCode(
-            # version=1,
-            # box_size=20,
-            # border=1,
-            # error_correction=qrcode.constants.ERROR_CORRECT_H
+            # version=1, box_size=20, border=1, error_correction=qrcode.constants.ERROR_CORRECT_H
             error_correction=self.error_correct
         )
         qr_big.add_data(self.short_url())
