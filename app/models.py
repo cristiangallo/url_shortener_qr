@@ -1,31 +1,47 @@
 # -*- coding: UTF-8 -*-
 
+import secrets
 import qrcode
 from django.db import models
 from django.conf import settings
-# from django.contrib.sites.models import Site
-#
-# PROTOCOLO_SITIO = f"{settings.USE_HTTPS and 'https' or 'http'}://{Site.objects.get_current().domain}"
+from django.contrib.sites.models import Site
+
+PROTOCOLO_SITIO = f"{settings.USE_HTTPS and 'https' or 'http'}://{Site.objects.get_current().domain}"
+
+
+def custom_id():
+    return secrets.token_urlsafe(8)
 
 
 class URL(models.Model):
     from sorl.thumbnail import ImageField as sorl_thumbnail_ImageField
 
+    class ErrorCorrect(models.IntegerChoices):
+        ERROR_CORRECT_L = 1, "Se pueden corregir alrededor del 7% o menos de los errores"
+        ERROR_CORRECT_M = 0, "Se pueden corregir alrededor del 15% o menos de los errores"
+        ERROR_CORRECT_Q = 3, "Se pueden corregir alrededor del 25% o menos de los errores"
+        ERROR_CORRECT_H = 2, "Se pueden corregir alrededor del 30% o menos de los errores"
+
+    id = models.CharField(max_length=11, primary_key=True, default=custom_id, editable=False)
     url = models.URLField(max_length=512)
     logo = sorl_thumbnail_ImageField(max_length=255, upload_to="qr-codes/logos/", null=True, blank=True)
     qr = sorl_thumbnail_ImageField(max_length=255, null=True, blank=True, editable=False)
+    error_correct = models.SmallIntegerField(choices=ErrorCorrect.choices, default=0)
 
     class Meta:
         verbose_name, verbose_name_plural = "URL", "URLs"
 
     def __str__(self):
-        return f"{self.url}"
+        return f"{self.id}"
 
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
         super().save()
         self.make_qr()
+
+    def short_url(self):
+        return f"{PROTOCOLO_SITIO}/{self.id}"
 
     def make_qr(self):
         import pyshorteners
@@ -41,9 +57,10 @@ class URL(models.Model):
             # version=1,
             # box_size=20,
             # border=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_H
+            # error_correction=qrcode.constants.ERROR_CORRECT_H
+            error_correction=self.error_correct
         )
-        qr_big.add_data(s.tinyurl.short(self.url))
+        qr_big.add_data(self.short_url())
         img_qr_big = qr_big.make_image().convert('RGB')
         if self.logo.name:
             logo = Image.open(f"{settings.BASE_DIR}{self.logo.url}").resize((120, 120))
